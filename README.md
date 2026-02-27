@@ -8,6 +8,8 @@
 4. Then `./compile.sh ../examples/des03.csh` *(example file)*
 5. Finally `./run.sh Output.java`
 
+<div align='center'>
+
 | Authors | GitHub Profile |
 | :---: | :---: |
 | **Beatriz Francisco** | [@BeatrizF26](https://github.com/BeatrizF26) |
