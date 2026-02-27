@@ -1,0 +1,330 @@
+main(name, stat, needsScanner, needsBang) ::= <<
+<if(needsScanner)>
+import java.util.Scanner;
+<endif>
+
+<if(needsBang)>
+import static java.lang.System.*;
+import java.util.*;
+import java.io.*;
+<endif>
+
+public class <name> {
+    public static void main(String[] args) {
+        <if(needsScanner)>
+        Scanner sc = new Scanner(System.in);
+        <endif>
+
+        <if(stat)>
+            <stat; separator="\n">
+        <endif>
+
+        <if(needsScanner)>
+        sc.close();
+        <endif>
+    }
+}
+>>
+
+
+stats(stat) ::= <<
+<if(stat)><stat;separator="\n"><endif>
+>>
+
+
+
+decl(type, var, value) ::= <<
+<type> <var><if(value)> = <value><endif>;
+>>
+
+
+statDeclaration(IDList, TYPE) ::= <<
+<TYPE> <IDList>;
+>>
+
+assign(var, value) ::= <<
+<var> = <value>;
+>>
+
+block(stat) ::= <<
+<stat; separator="\n">
+>>
+
+
+
+// !"ls"!
+exprExecute(commandCode, processVar, commandVar, additionalParams) ::= <<
+
+<commandCode>
+
+StringBuilder <processVar>_out = new StringBuilder();
+StringBuilder <processVar>_err = new StringBuilder();
+String <processVar>_exitCode = "-1";
+try {
+    String command = <commandVar>;
+<if(additionalParams)>
+    command += " " + <additionalParams>;
+<endif>
+
+    Process proc = Runtime.getRuntime().exec(command);
+    BufferedReader outReader = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+    BufferedReader errReader = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+
+    String line;
+    while ((line = outReader.readLine()) != null) {
+        <processVar>_out.append(line).append("\n");
+    }
+    while ((line = errReader.readLine()) != null) {
+        <processVar>_err.append(line).append("\n");
+    }
+    proc.waitFor();
+    <processVar>_exitCode = String.valueOf(proc.exitValue());
+} catch (Exception e) {
+    <processVar>_err.append("Erro ao executar comando: ").append(e.getMessage());
+}
+String <processVar>_stdout = <processVar>_out.toString().trim();
+String <processVar>_stderr = <processVar>_err.toString().trim();
+String <processVar>_exit = <processVar>_exitCode;
+String <processVar>_value = "";
+
+Program <processVar> = new Program(<processVar>_stdout, <processVar>_stderr, Integer.parseInt(<processVar>_exit), new TextValue(<processVar>_value)
+);
+>>
+
+
+
+// ficheiros.ish
+exprExecuteIsh(code) ::= <<
+<code>
+>>
+
+
+// tipos de dados
+exprStr(var, value) ::= << <var> <value> >>
+exprInt(var, value) ::= << <var> <value> >>
+exprFloat(value) ::= << <value> >>
+exprId(id) ::= <<>>
+
+listLiteral(var, elements) ::= <<
+List<Object> <var> = Arrays.asList(
+  <elements; separator=", ">
+);
+>>
+
+
+
+// expressoes aritmeticas
+exprUnary(stat, type, var, signal, value) ::= << 
+<type> <var> = <signal> <value>;
+>>
+
+
+
+exprPlusMinus(stat, type, var, value1, op, value2) ::= << 
+<stats(stat)>
+<decl(type, var, [value1," ", op, " ", value2])>
+>>
+
+
+
+exprMulDiv(stat, type, var, value1, op, value2) ::= <<
+<stats(stat)>
+<decl(type, var, [value1," ", op, " ", value2])>
+>>
+
+
+
+exprParen(expr) ::= << 
+<expr> 
+>>
+
+
+
+// operador pipe
+exprPipeExpr(type, var, expr1, pipe, channel, expr2) ::= <<
+<expr1>
+<expr2>
+>>
+
+
+
+// pipe assignement
+pipeAssignDeclare(type, id, value, stat) ::= <<
+<if(stat)><stat><endif>
+<type> <id>;
+<id> = <value>;
+>>
+
+pipeAssignment(id, value, stat) ::= <<
+<if(stat)><stat><endif>
+<id> = <value>;
+>>
+
+
+
+// converter tipo de dados
+ExprConvert(TYPE, expr) ::= <<
+<TYPE> <expr>
+>>
+
+
+
+// pipe programa
+PipePrograma(program_expr, pipe, channel, output) ::= <<
+<program_expr> <pipe> <if(channel)> <channel><endif> <output>
+>>
+
+
+
+// Diferentes formas de fazer Cast
+exprCastToInt(var, value) ::= <<
+int <var> = Integer.parseInt(<value>);
+>>
+
+exprCastToDouble(var, value) ::= <<
+double <var> = Double.parseDouble(<value>);
+>>
+
+exprCastToString(var, value) ::= <<
+String <var> = String.valueOf(<value>);
+>>
+
+exprTypeCast(type, var, value) ::= <<
+<type> <var> = (<type>) <value>;
+>>
+
+
+
+ExprNL() ::= <<System.out.println(); >>
+
+
+
+// channels
+DollarChannel(value) ::= <<
+System.out.println(<value>);
+>>
+
+StdoutChannel(value) ::= <<
+System.out.print(<value>.stdout);
+>>
+
+StderrChannel(value) ::= <<
+System.out.print(<value>.stderr);
+>>
+
+ExitChannel(value) ::= <<
+System.exit(Integer.parseInt(<value>));
+>>
+
+
+
+// stdin
+exprStdin(promptDecl, promptVar, inputVar, targetType, varName, castCode) ::= <<
+<promptDecl>
+System.out.print(<promptVar>);
+String <inputVar> = sc.nextLine();
+<pipeAssignDeclare(targetType, varName, castCode, "")>
+>>
+
+
+
+// prints Stdout and Stderr
+printStdout(stat,value) ::= <<
+<if(stat)><stat; separator="\n"><endif>
+System.out.println(<value>);
+>>
+
+printStderr(stat,value) ::= <<
+<if(stat)><stat; separator="\n"><endif>
+System.err.println(<value>);
+>>
+
+
+
+// relações de ordem 
+exprRelationalEquals(stat, value1, value2, resultVar) ::= <<
+<stats(stat)>
+
+if (<value1>.equals(<value2>)) {
+    <resultVar> = true;
+} else {
+    <resultVar> = false;
+}
+>>
+
+exprRelationalNotEquals(stat, value1, value2, resultVar) ::= <<
+<stats(stat)>
+
+if (!<value1>.equals(<value2>)) {
+    <resultVar> = true;
+} else {
+    <resultVar> = false;
+}
+>>
+
+
+exprRelationalDefault(stat, op, value1, value2, resultVar) ::= <<
+<stats(stat)>
+
+if (<value1> <op> <value2>) {
+    <resultVar> = true;
+} else {
+    <resultVar> = false;
+}
+>>
+
+
+
+exprAndOr(stat, op, value1, value2, resultVar) ::= <<
+<stats(stat)>
+boolean <resultVar>;
+if (<value1> <op> <value2>) {
+    <resultVar> = true;
+} else {
+    <resultVar> = false;
+}
+>>
+
+
+
+//If conditional
+visitIf(expr, condVar, preStats, postStats) ::= <<
+<expr>
+if (<condVar>) {
+<preStats; separator="\n">
+} <if(postStats)>else {
+<postStats; separator="\n">
+}<endif>
+>>
+
+
+
+
+// loop
+loopHead(condStat, cond, stats) ::= <<
+while (true) {
+    boolean <cond>;
+    <condStat>
+    if (!<cond>) break;
+
+    <stats; separator="\n">
+}
+>>
+
+
+loopTail(initStats, stats, condStat, cond) ::= <<
+<initStats; separator="\n">
+do {
+    <stats; separator="\n">
+    <condStat>
+} while (!(<cond>));
+>>
+
+
+loopMiddle(resultVar, preStats, postStats) ::= <<
+boolean <resultVar>;
+do {
+    <preStats; separator="\n">
+    <postStats; separator="\n">
+} while (!<resultVar>);
+>>

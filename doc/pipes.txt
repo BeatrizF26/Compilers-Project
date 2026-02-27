@@ -1,0 +1,63 @@
+# !<path>! executes an external program
+
+# every command and expression may have up to four channels: expression, stdout, stderr, and exit
+# some commands/expressions might not define all four channels!
+#
+#  "..." has only an expression (text) channel
+#  25 has only an expression (integer) channel
+# !prog! has three channels (no expression defined, although exit value behaves as a boolean expression)
+
+# a pipes (|) passes all available channels to next pipe element; it also uses the (stdout) | symbol
+ 
+# a symbol is (consistently) attached to each of these four channels:
+#    $ expression
+#    | stdout (reuses the pipe symbol for consistency with normal pipe usage)
+#    & stderr
+#    ? exit
+
+# special symbols are also allowed:
+#    - null (no channel)
+#    * all channels
+
+
+ADVANCED PIPES:
+
+# the pipe operation allows redirection channels (source channels ceases to exist)
+# to achieve that, before the pipe symbol one may redirect channels s+^d (s,d in {$,|,&,?,*,-})
+# All existing channels not involved in this operation (if any) are not affected (and pass throught the pipe).
+# note that not all redirections are possible! redirect stdout to exit makes no sense (in general, thus it should be forbbiden)
+
+# |^$ |        -> redirects stdout to (text) expression
+# &^$ |        -> redirects stderr to (text) expression
+# ?^$ |        -> redirects exit value to (integer) expression
+
+# $^| |        -> redirects expression (converted to text) to stdout
+# &^| |        -> redirects stderr to stdout
+# ?^| |        -> redirects exit value to (text) stdout
+
+# $^& |        -> redirects expression (converted to text) to stderr
+# |^& |        -> redirects stdout to stderr
+# ?^& |        -> redirects exit value to (text) stderr
+
+# using special channel - symbol is also possible:
+
+# $^- |        -> remove expression channel (redirect to null)
+# |^- |        -> remove stdout channel (redirect to null)
+# &^- |        -> remove stdout channel (redirect to null)
+# ?^- |        -> remove exit value channel (redirect to null)
+
+
+# For example, a pipe that redirects all channels to stdout is:
+# !prog! *^| | stdout
+
+# redirect and filter channel:
+# &^| ||   -> redirects stderr to stdout and then only passes stdout through pipe
+
+# the pipe operation may also define the channel to which the next pipe operation (and only that) is to be applied.
+# (all other existing channels, if any, pass without applying the filter):
+# |     -> apply filter to all (active) channels (default)
+# |$    -> apply filter only to expression
+# ||    -> apply filter only to stdout (has higher priority than channel filtering throught ||, thus ||| is required to filter only stdout and applying next pipe operations only to stdout)
+# |&    -> apply filter only to stderr
+# |?    -> apply filter only to exit value
+
